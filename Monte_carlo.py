@@ -1,0 +1,99 @@
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Set backend to Agg for matplotlib in Streamlit
+import matplotlib
+
+matplotlib.use("Agg")
+
+# Title
+st.title("Beta Project: Leveraged Portfolio Monte-Carlo Simulation")
+
+# Simulation Parameters
+st.write("### Simulation Parameters")
+initial_investment = st.number_input("Initial Investment ($)", value=10000)
+leverage_ratio = st.number_input("Leverage Ratio", value=4)
+investment_horizon = st.number_input("Investment Horizon (Years)", value=30)
+expected_return = st.slider("Expected Annual Return (%)", 0.0, 20.0, 7.0) / 100
+volatility = st.slider("Annual Volatility (%)", 0.0, 50.0, 15.0) / 100
+margin_threshold = initial_investment * leverage_ratio * 0.8
+
+# Explanation of Simulation
+st.write("""
+### Explanation of the Simulation
+This Monte Carlo simulation models a portfolio with a **leverage ratio of 4x** based on an initial investment of $10,000. The investor rebalances their portfolio annually to maintain the same leverage ratio. Each year, returns are simulated based on the expected return and volatility of the underlying index. A **margin call** occurs if the portfolio value drops below 80% of the initial leveraged amount, in which case the investor loses all their capital.
+
+#### Key Parameters:
+- **Initial Investment**: $10,000
+- **Leverage Ratio**: 4x
+- **Investment Horizon**: 30 years
+- **Expected Return**: 7%
+- **Annual Volatility**: 15%
+""")
+
+# Run simulation when button is clicked
+if st.button("Run Simulation"):
+    num_simulations = 10000
+    final_portfolio_values = np.zeros(num_simulations)
+    margin_call_count = 0
+    portfolio_paths = np.zeros((num_simulations, investment_horizon + 1))
+
+    for i in range(num_simulations):
+        portfolio_value = initial_investment * leverage_ratio
+        for year in range(investment_horizon):
+            annual_return = np.random.normal(expected_return, volatility)
+            portfolio_value *= (1 + annual_return)
+
+            # Check for margin call
+            if portfolio_value < margin_threshold:
+                portfolio_value = 0
+                margin_call_count += 1
+                portfolio_paths[i, year:] = 0  # Set remaining years to 0
+                break
+
+            # Rebalance to maintain leverage ratio
+            equity = portfolio_value / leverage_ratio
+            portfolio_value = equity * leverage_ratio
+            portfolio_paths[i, year + 1] = portfolio_value
+
+        final_portfolio_values[i] = portfolio_value
+
+    # Expected Portfolio Value and Margin Call Percentage
+    mean_value = np.mean(final_portfolio_values)
+    margin_call_percentage = (margin_call_count / num_simulations) * 100
+
+    # Display Results Summary
+    st.write(f"### Simulation Results")
+    st.write(f"**Expected Portfolio Value after {investment_horizon} years**: ${mean_value:,.2f}")
+    st.write(f"**Percentage of Portfolios that lost all due to Margin Call**: {margin_call_percentage:.2f}%")
+
+    # Plot 1: Percentile Line Plot
+    percentiles = [5, 25, 50, 75, 95]
+    percentile_values = np.percentile(portfolio_paths, percentiles, axis=0)
+
+    fig1, ax1 = plt.subplots(figsize=(10, 6))
+    for i, percentile in enumerate(percentiles):
+        ax1.plot(range(investment_horizon + 1), percentile_values[i], label=f"{percentile}th Percentile")
+    ax1.set_title("Portfolio Value Percentiles Over Time")
+    ax1.set_xlabel("Years")
+    ax1.set_ylabel("Portfolio Value")
+    ax1.legend()
+    st.pyplot(fig1)
+
+    # Plot 2: Histogram of Final Portfolio Values
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    ax2.hist(final_portfolio_values, bins=100, edgecolor='black')
+    ax2.set_xlabel('Final Portfolio Value')
+    ax2.set_ylabel('Frequency')
+    ax2.set_title('Distribution of Final Portfolio Values')
+    st.pyplot(fig2)
+
+    # Plot 3: Sample Portfolio Paths (Showing a subset for visual clarity)
+    fig3, ax3 = plt.subplots(figsize=(10, 6))
+    for path in portfolio_paths[:100]:  # Show 100 sample paths
+        ax3.plot(range(investment_horizon + 1), path, alpha=0.1)
+    ax3.set_title("Sample Portfolio Value Paths Over Time")
+    ax3.set_xlabel("Years")
+    ax3.set_ylabel("Portfolio Value")
+    st.pyplot(fig3)
