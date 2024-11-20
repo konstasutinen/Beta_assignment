@@ -1,161 +1,221 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-
-# Set backend to Agg for matplotlib in Streamlit
+import matplotlib.pyplot as plt
 import matplotlib
 
-matplotlib.use("Agg")
+# Use Agg backend for non-interactive environments
+matplotlib.use('Agg')
 
-# Title and Team Information
-st.title("Beta Project: Leveraged Portfolio Monte-Carlo Simulation (Daily Returns)")
-st.write(
-    "**Portfolio Management 2024 Beta Assignment.** Made by Konsta Sutinen, Aaro Tuominen, Elias Vanninen, and Kalle Juven")
+# Application Title
+st.title("Beta Project: Monte-Carlo simulation of leveraged equity portfolio 🎲")
+st.subheader("Made by Konsta Sutinen, Aaro Tuominen, Elias Vanninen and Kalle Juven")
 
-# Simulation Parameters
-st.write("### Simulation Parameters")
-initial_investment = st.number_input("Initial Investment ($)", value=10000)
+# User Input for Simulation Parameters
+initial_investment = st.number_input("Initial Investment ($)", value=1000, step=100)
+percentage_of_leverage_in_portfolio = st.slider(
+    "Leverage as % of Portfolio", min_value=0, max_value=95, value=50
+)
+time_horizon_years = st.slider("Time Horizon (Years)", min_value=1, max_value=10, value=5)
+interest_rate_margin = st.slider("Interest Rate Margin (%)", min_value=0.0, max_value=10.0, value=1.0) / 100
+num_simulations = st.selectbox("Number of Simulations", options=[1, 100, 1000, 10000], index=2)
 
-# Updated leverage ratio slider (1 means no leverage)
-leverage_ratio = st.slider("Leverage Ratio", min_value=1, max_value=5, value=1)
-investment_horizon_years = st.slider("Investment Horizon (Years)", min_value=1, max_value=10, value=10)
-investment_horizon_days = int(investment_horizon_years * 252)  # Convert years to trading days
+# Leverage Calculation
+leverage = initial_investment / (1 - (percentage_of_leverage_in_portfolio / 100)) - initial_investment
+portfolio_start_value = initial_investment + leverage
 
-# Interest rate slider
-annual_interest_rate = st.slider("Annual Interest Rate (%)", min_value=0.0, max_value=6.0, value=2.0) / 100
-daily_interest_rate = annual_interest_rate / 252  # Calculate daily interest rate based on the chosen annual rate
+# Donut Chart to Visualize Portfolio Allocation
+st.write("### Portfolio Allocation")
 
-daily_mean_return = 0.000358  # Daily mean return for S&P 500
-daily_volatility = 0.010807  # Daily volatility for S&P 500
-num_simulations = 10000  # Fixed number of simulations
+# Data for the chart
+data = [initial_investment, leverage]
+labels = ["Equity ", "Leverage "]
 
-# Calculate loaned capital and total investment based on leverage ratio
-loaned_capital = initial_investment * (leverage_ratio - 1)
-total_investment = initial_investment + loaned_capital
-margin_threshold = loaned_capital  # Liquidate if portfolio value <= loaned capital
-
-# Display the Donut Chart for Investment Composition
-st.write("#### Portfolio Composition")
-composition_labels = [f"Equity (${initial_investment:,.2f})", f"Loaned Capital (${loaned_capital:,.2f})"]
-composition_values = [initial_investment, loaned_capital]
-
-# Donut chart setup
+# Create the figure
 fig, ax = plt.subplots()
-ax.pie(composition_values, labels=composition_labels, startangle=90, wedgeprops=dict(width=0.3),
-       colors=["#1f77b4", "#ff7f0e"])
-ax.text(0, 0, f"Total\n${total_investment:,.2f}", ha='center', va='center', fontsize=12, weight='bold')
-ax.set_title("Portfolio Value Composition")
+wedges, texts, autotexts = ax.pie(
+    data, labels=labels, autopct='%1.1f%%', startangle=90, textprops=dict(color="w")
+)
+ax.axis('equal')  # Equal aspect ratio ensures the pie is drawn as a circle.
+
+# Annotate the chart with dollar values
+total_portfolio = initial_investment + leverage
+for i, value in enumerate(data):
+    percentage = value / total_portfolio * 100
+    ax.text(
+        0,
+        -1.2 - (i * 0.1),  # Adjust position for each value
+        f"{labels[i]}: ${value:,.2f} ({percentage:.1f}%)",
+        horizontalalignment='center',
+        fontsize=10,
+        color='black',
+    )
+
+# Display the chart
 st.pyplot(fig)
 
-# Run simulation when button is clicked
-if st.button("Run Simulation"):
-    final_portfolio_values = np.zeros(num_simulations)
-    margin_call_count = 0
-    portfolio_paths = np.zeros((num_simulations, investment_horizon_days + 1))
+# Button to Trigger Simulation
+simulate_button = st.button("Simulate")
+if simulate_button:
+    st.markdown("## 🎯 Simulation Results")
 
-    for i in range(num_simulations):
-        portfolio_value = total_investment
-        equity = initial_investment  # Start with the initial equity
 
-        for day in range(investment_horizon_days):
-            # Step 1: Simulate daily return
-            daily_return = np.random.normal(daily_mean_return, daily_volatility)
+    # Vasicek Model Simulation Function
+    def vasicek_simulation(start_rate, mean_rate, kappa, sigma, num_simulations, forecast_period):
+        dt = 1 / 252
+        random_shocks = np.random.normal(0, 1, (forecast_period, num_simulations))
+        rate_paths = np.zeros((forecast_period + 1, num_simulations))
+        rate_paths[0] = start_rate
+        for t in range(1, forecast_period + 1):
+            dr = kappa * (mean_rate - rate_paths[t - 1]) * dt + sigma * random_shocks[t - 1] * np.sqrt(dt)
+            rate_paths[t] = rate_paths[t - 1] + dr
+        return rate_paths
 
-            # Step 2: Update portfolio value based on daily return
-            portfolio_value *= (1 + daily_return)
+    # Simulation Parameters
+    avg_daily_return = 0.0360 / 100
+    daily_volatility = 0.010806037
+    trading_days_per_year = 252
+    total_days = time_horizon_years * trading_days_per_year
 
-            # Step 3: Deduct daily interest if leverage is used
-            if leverage_ratio > 1:
-                portfolio_value -= loaned_capital * daily_interest_rate
+    # Vasicek Model Parameters
+    start_rate = 0.0458
+    mean_rate = 0.0461
+    kappa = -0.003794768
+    sigma = 0.003141746
 
-            # Step 4: Calculate equity (portfolio value - loaned capital)
-            equity = portfolio_value - loaned_capital
-
-            # Step 5: Check for margin call (liquidate if portfolio value <= loaned capital)
-            if portfolio_value <= loaned_capital:
-                equity = 0
-                margin_call_count += 1
-                break  # Stop further simulation for this path
-
-            # Store portfolio equity for each day
-            portfolio_paths[i, day + 1] = equity
-
-        final_portfolio_values[i] = equity
-
-    # Expected Portfolio Value and Margin Call Percentage
-    mean_value = np.mean(final_portfolio_values)
-    margin_call_percentage = (margin_call_count / num_simulations) * 100
-
-    # Display Explanation with Actual Parameters
-    st.write("""
-    ### Explanation of the Simulation
-    This Monte Carlo simulation models a leveraged portfolio with **daily compounding** based on S&P 500's daily return statistics. The investor maintains an initial leverage ratio of **{leverage_ratio}x** and does **not rebalance** daily. Additionally, the investor pays an annual interest rate of **{annual_interest_rate:.2%}** on the loaned amount, which is deducted daily at a rate of **{daily_interest_rate:.5f}**.
-
-    #### Key Parameters:
-    - **Initial Investment**: ${initial_investment:,.2f}
-    - **Leverage Ratio**: {leverage_ratio}x
-    - **Loaned Capital**: ${loaned_capital:,.2f}
-    - **Total Investment**: ${total_investment:,.2f}
-    - **Investment Horizon**: {investment_horizon_years} years (compounded daily over 252 trading days per year)
-    - **Daily Mean Return**: 0.0358%
-    - **Daily Volatility**: 1.0807%
-    - **Daily Interest Cost**: {daily_interest_rate:.5f} of the loaned amount, deducted daily (if leverage > 1)
-    - **Margin Call**: The portfolio is liquidated if the portfolio value falls below or equals the loaned capital.
-    - **Number of Simulations**: {num_simulations}
-    """.format(
-        leverage_ratio=leverage_ratio,
-        initial_investment=initial_investment,
-        loaned_capital=loaned_capital,
-        total_investment=total_investment,
-        investment_horizon_years=investment_horizon_years,
-        annual_interest_rate=annual_interest_rate,
-        daily_interest_rate=daily_interest_rate,
+    # Simulate Interest Rates
+    interest_rate_paths = vasicek_simulation(
+        start_rate=start_rate,
+        mean_rate=mean_rate,
+        kappa=kappa,
+        sigma=sigma,
         num_simulations=num_simulations,
-    ))
+        forecast_period=total_days,
+    )
 
-    # Display Results Summary
-    st.write(f"### Simulation Results")
-    st.write(f"**Expected Equity Value after {investment_horizon_years} years**: ${mean_value:,.2f}")
-    st.write(f"**Percentage of Portfolios that lost all due to Margin Call**: {margin_call_percentage:.2f}%")
+    # Daily Returns
+    daily_returns = np.random.normal(avg_daily_return, daily_volatility, (total_days, num_simulations))
 
-    # Percentiles of final equity values
-    percentiles = [5, 25, 50, 75, 95]
-    percentile_values = np.percentile(final_portfolio_values, percentiles)
+    # Initialize Portfolios
+    portfolio_values = np.zeros((total_days + 1, num_simulations))
+    portfolio_values2 = np.zeros((total_days + 1, num_simulations))
+    portfolio_values[0] = portfolio_start_value
+    portfolio_values2[0] = initial_investment
 
-    # Display percentile values in a table
-    percentile_df = pd.DataFrame({
-        "Percentile": [f"{p}%" for p in percentiles],
-        "Equity Value": [f"${v:,.2f}" for v in percentile_values]
-    })
-    st.write("#### Percentile Values of Final Equity")
-    st.table(percentile_df)
+    # Initialize equity array for plotting
+    equity_values_all = np.zeros((total_days + 1, num_simulations))
 
-    # Plot 1: Percentile Line Plot
-    percentile_paths = np.percentile(portfolio_paths, percentiles, axis=0)
-    fig1, ax1 = plt.subplots(figsize=(10, 6))
-    days = np.arange(investment_horizon_days + 1) / 252  # Convert days back to years for x-axis
-    for i, percentile in enumerate(percentiles):
-        ax1.plot(days, percentile_paths[i], label=f"{percentile}th Percentile")
-    ax1.set_title("Equity Value Percentiles Over Time")
-    ax1.set_xlabel("Years")
-    ax1.set_ylabel("Equity Value")
-    ax1.legend()
-    st.pyplot(fig1)
+    # Simulate Portfolio with Updated Logic
+    for t in range(1, total_days + 1):
+        # Update portfolio with daily returns and deduct daily interest
+        portfolio_values[t] = portfolio_values[t - 1] * (1 + daily_returns[t - 1]) - (
+            leverage * ((interest_rate_paths[t] + interest_rate_margin) / trading_days_per_year)
+        )
+        portfolio_values2[t] = portfolio_values2[t - 1] * (1 + daily_returns[t - 1])
 
-    # Plot 2: Histogram of Final Equity Values
-    fig2, ax2 = plt.subplots(figsize=(10, 6))
-    ax2.hist(final_portfolio_values, bins=100, edgecolor='black')
-    ax2.set_xlabel('Final Equity Value')
-    ax2.set_ylabel('Frequency')
-    ax2.set_title('Distribution of Final Equity Values')
-    st.pyplot(fig2)
+        # Calculate equity (portfolio value - leverage) and ensure it does not go negative
+        equity_values = np.maximum(portfolio_values[t] - leverage, 0)
 
-    # Plot 3: Sample Equity Paths (Showing a subset for visual clarity)
-    fig3, ax3 = plt.subplots(figsize=(10, 6))
-    for path in portfolio_paths[:100]:  # Show 100 sample paths
-        ax3.plot(days, path, alpha=0.1)
-    ax3.set_title("Sample Equity Paths Over Time")
-    ax3.set_xlabel("Years")
-    ax3.set_ylabel("Equity Value")
-    st.pyplot(fig3)
+        # Apply margin call: If equity <= 0, set equity and portfolio to 0
+        margin_call_occurred = equity_values <= 0
+        portfolio_values[t] = np.where(margin_call_occurred, 0, portfolio_values[t])
+
+        # Store equity values for plotting
+        equity_values_all[t] = equity_values
+
+    # Calculate final values
+    final_equity_values = np.maximum(portfolio_values[-1] - leverage, 0)
+    final_portfolio_values2 = portfolio_values2[-1]
+
+    # Calculate percentiles
+    percentiles = np.percentile(final_equity_values, [10, 25, 50, 75, 90])
+    percentiles2 = np.percentile(final_portfolio_values2, [10, 25, 50, 75, 90])
+
+
+
+    # Margin Call Percentage
+    margin_call_percentage = (portfolio_values[-1] == 0).sum() / num_simulations * 100
+    st.write(f"Percentage of simulations where margin call occurred: {margin_call_percentage:.2f}%")
+
+    st.metric(label="Margin Call Rate", value=f"{margin_call_percentage:.2f}%", delta="-")
+    st.metric(label="Median Levered Portfolio", value=f"${np.median(final_equity_values):,.2f}")
+    st.metric(label="Median Unlevered Portfolio", value=f"${np.median(final_portfolio_values2):,.2f}")
+
+    # Percentile Table
+    combined_percentile_table = pd.DataFrame(
+        {
+            "Levered Portfolio": percentiles,
+            "Unlevered Portfolio": percentiles2,
+        },
+        index=["10th", "25th", "50th (Median)", "75th", "90th"],
+    )
+
+    # Format the table to display as currency with 2 decimal places
+    formatted_table = combined_percentile_table.style.format("${:,.2f}")
+
+    # Display the formatted table in Streamlit
+    st.write("### Percentile Table")
+    st.dataframe(formatted_table)
+
+    # Calculate Average Annualized Return (AAR) for both portfolios
+    avg_annual_return_levered = ((np.mean(final_equity_values) / initial_investment) ** (1 / time_horizon_years)) - 1
+    avg_annual_return_unlevered = ((np.mean(final_portfolio_values2) / initial_investment) ** (
+                1 / time_horizon_years)) - 1
+
+    # Display the results
+    st.write(f"Average Annualized Return (Levered Portfolio): {avg_annual_return_levered:.2%}")
+    st.write(f"Average Annualized Return (Unlevered Portfolio): {avg_annual_return_unlevered:.2%}")
+
+    # Plot Simulated Equity Paths for Leveraged Portfolio
+    st.write("### Simulated Equity Paths (Leveraged Portfolio)")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for i in range(min(50, num_simulations)):
+        ax.plot(range(total_days + 1), equity_values_all[:, i], alpha=0.5, linewidth=0.7)
+    ax.axhline(0, color="red", linestyle="--", label="Margin Call Trigger (Equity = $0)")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+
+    # Plot Simulated Equity Paths for Unlevered Portfolio
+    st.write("### Simulated Equity Paths (Unlevered Portfolio)")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for i in range(min(50, num_simulations)):
+        ax.plot(range(total_days + 1), portfolio_values2[:, i], alpha=0.5, linewidth=0.7)
+    ax.grid(True)
+    st.pyplot(fig)
+
+    # Plot Simulated Interest Rate Paths
+    st.write("### Simulated Interest Rate Paths")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for i in range(min(50, num_simulations)):
+        ax.plot(range(total_days + 1), interest_rate_paths[:, i], alpha=0.5, linewidth=0.7)
+    ax.grid(True)
+    st.pyplot(fig)
+    # Calculate VaR (Value at Risk)
+    var_5_levered = np.percentile(final_equity_values, 5)
+    var_1_levered = np.percentile(final_equity_values, 1)
+    var_5_unlevered = np.percentile(final_portfolio_values2, 5)
+    var_1_unlevered = np.percentile(final_portfolio_values2, 1)
+
+    # Create a DataFrame for VaR results
+    var_table = pd.DataFrame(
+        {
+            "Levered Portfolio": [var_5_levered, var_1_levered],
+            "Unlevered Portfolio": [var_5_unlevered, var_1_unlevered],
+        },
+        index=["VaR at 5%", "VaR at 1%"]
+    )
+
+    # Format table values as currency with 2 decimal places
+    var_table = var_table.style.format("${:,.2f}")
+
+    # Display the VaR table
+    st.write("### Value at Risk (VaR) Table")
+    st.dataframe(var_table)
+
+    #exceed threshold
+    threshold = 5000
+    prob_above_levered = (final_equity_values > threshold).sum() / num_simulations * 100
+    prob_above_unlevered = (final_portfolio_values2 > threshold).sum() / num_simulations * 100
+    st.write(f"Probability of Levered Portfolio > $5,000: {prob_above_levered:.2f}%")
+    st.write(f"Probability of Unlevered Portfolio > $5,000: {prob_above_unlevered:.2f}%")
