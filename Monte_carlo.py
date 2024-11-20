@@ -18,7 +18,7 @@ initial_investment = st.number_input("Initial Investment ($)", value=1000, step=
 # Check and warn if the user tries to set an invalid value
 if initial_investment < 100:
     st.error("Initial investment must be at least $100.")
-    
+
 percentage_of_leverage_in_portfolio = st.slider(
     "Leverage as % of Portfolio", min_value=0, max_value=95, value=50
 )
@@ -77,6 +77,7 @@ if simulate_button:
             rate_paths[t] = rate_paths[t - 1] + dr
         return rate_paths
 
+
     # Simulation Parameters
     avg_daily_return = 0.0360 / 100
     daily_volatility = 0.010806037
@@ -115,7 +116,7 @@ if simulate_button:
     for t in range(1, total_days + 1):
         # Update portfolio with daily returns and deduct daily interest
         portfolio_values[t] = portfolio_values[t - 1] * (1 + daily_returns[t - 1]) - (
-            leverage * ((interest_rate_paths[t] + interest_rate_margin) / trading_days_per_year)
+                leverage * ((interest_rate_paths[t] + interest_rate_margin) / trading_days_per_year)
         )
         portfolio_values2[t] = portfolio_values2[t - 1] * (1 + daily_returns[t - 1])
 
@@ -137,13 +138,10 @@ if simulate_button:
     percentiles = np.percentile(final_equity_values, [10, 25, 50, 75, 90])
     percentiles2 = np.percentile(final_portfolio_values2, [10, 25, 50, 75, 90])
 
-
-
     # Margin Call Percentage
     margin_call_percentage = (portfolio_values[-1] == 0).sum() / num_simulations * 100
-    
 
-    st.metric(label="Margin Call Rate", value=f"{margin_call_percentage:.2f}%",)
+    st.metric(label="Margin Call Rate", value=f"{margin_call_percentage:.2f}%", )
     st.metric(label="Median Levered Portfolio", value=f"${np.median(final_equity_values):,.2f}")
     st.metric(label="Median Unlevered Portfolio", value=f"${np.median(final_portfolio_values2):,.2f}")
 
@@ -166,7 +164,7 @@ if simulate_button:
     # Calculate Average Annualized Return (AAR) for both portfolios
     avg_annual_return_levered = ((np.mean(final_equity_values) / initial_investment) ** (1 / time_horizon_years)) - 1
     avg_annual_return_unlevered = ((np.mean(final_portfolio_values2) / initial_investment) ** (
-                1 / time_horizon_years)) - 1
+            1 / time_horizon_years)) - 1
 
     # Display the results
     st.write(f"Average Annualized Return (Levered Portfolio): {avg_annual_return_levered:.2%}")
@@ -197,36 +195,35 @@ if simulate_button:
         ax.plot(range(total_days + 1), interest_rate_paths[:, i], alpha=0.5, linewidth=0.7)
     ax.grid(True)
     st.pyplot(fig)
-    
-# Ensure final equity values are calculated
-final_equity_values = np.maximum(portfolio_values[-1] - leverage, 0)
-final_portfolio_values2 = portfolio_values2[-1]
 
-# Calculate VaR as percentage loss
-var_5_levered = (np.percentile(final_equity_values, 5) / initial_investment - 1) * 100
-var_1_levered = (np.percentile(final_equity_values, 1) / initial_investment - 1) * 100
-var_5_unlevered = (np.percentile(final_portfolio_values2, 5) / initial_investment - 1) * 100
-var_1_unlevered = (np.percentile(final_portfolio_values2, 1) / initial_investment - 1) * 100
+    # Ensure final equity values are calculated
+    final_equity_values = np.maximum(portfolio_values[-1] - leverage, 0)
+    final_portfolio_values2 = portfolio_values2[-1]
 
-# Create a DataFrame for VaR results
-var_table = pd.DataFrame(
+    # Calculate VaR as percentage loss
+    var_5_levered = (np.percentile(final_equity_values, 5) / initial_investment - 1) * 100
+    var_1_levered = (np.percentile(final_equity_values, 1) / initial_investment - 1) * 100
+    var_5_unlevered = (np.percentile(final_portfolio_values2, 5) / initial_investment - 1) * 100
+    var_1_unlevered = (np.percentile(final_portfolio_values2, 1) / initial_investment - 1) * 100
+
+    # Create a DataFrame for VaR results
+    var_table = pd.DataFrame(
     {
         "Levered Portfolio": [f"{var_5_levered:.2f}%", f"{var_1_levered:.2f}%"],
         "Unlevered Portfolio": [f"{var_5_unlevered:.2f}%", f"{var_1_unlevered:.2f}%"],
     },
     index=["VaR at 5%", "VaR at 1%"]
-)
+    )
 
-# Display the VaR table
-st.write("### Value at Risk (VaR) as Percentage Loss")
-st.dataframe(var_table)
+    # Display the VaR table
+    st.write("### Value at Risk (VaR) as Percentage Loss")
+    st.dataframe(var_table)
 
+    # Calculate probability of achieving 5X the initial investment
+    threshold = 5 * initial_investment
+    prob_5x_levered = (final_equity_values >= threshold).sum() / num_simulations * 100
+    prob_5x_unlevered = (final_portfolio_values2 >= threshold).sum() / num_simulations * 100
 
-# Calculate probability of achieving 5X the initial investment
-threshold = 5 * initial_investment
-prob_5x_levered = (final_equity_values >= threshold).sum() / num_simulations * 100
-prob_5x_unlevered = (final_portfolio_values2 >= threshold).sum() / num_simulations * 100
-
-# Display the probabilities
-st.write(f"Probability of Levered Portfolio ≥ 5X Initial Investment: {prob_5x_levered:.2f}%")
-st.write(f"Probability of Unlevered Portfolio ≥ 5X Initial Investment: {prob_5x_unlevered:.2f}%")
+    # Display the probabilities
+    st.write(f"Probability of Levered Portfolio ≥ 5X Initial Investment: {prob_5x_levered:.2f}%")
+    st.write(f"Probability of Unlevered Portfolio ≥ 5X Initial Investment: {prob_5x_unlevered:.2f}%")
