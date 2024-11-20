@@ -198,7 +198,11 @@ if simulate_button:
     ax.grid(True)
     st.pyplot(fig)
     
-  # Calculate VaR as percentage loss
+# Ensure final equity values are calculated
+final_equity_values = np.maximum(portfolio_values[-1] - leverage, 0)
+final_portfolio_values2 = portfolio_values2[-1]
+
+# Calculate VaR as percentage loss
 var_5_levered = (np.percentile(final_equity_values, 5) / initial_investment - 1) * 100
 var_1_levered = (np.percentile(final_equity_values, 1) / initial_investment - 1) * 100
 var_5_unlevered = (np.percentile(final_portfolio_values2, 5) / initial_investment - 1) * 100
@@ -216,6 +220,7 @@ var_table = pd.DataFrame(
 # Display the VaR table
 st.write("### Value at Risk (VaR) as Percentage Loss")
 st.dataframe(var_table)
+
 
 # Calculate probability of achieving 5X the initial investment
 threshold = 5 * initial_investment
