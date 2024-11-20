@@ -143,7 +143,7 @@ if simulate_button:
     margin_call_percentage = (portfolio_values[-1] == 0).sum() / num_simulations * 100
     
 
-    st.metric(label="Margin Call Rate", value=f"{margin_call_percentage:.2f}%",
+    st.metric(label="Margin Call Rate", value=f"{margin_call_percentage:.2f}%",)
     st.metric(label="Median Levered Portfolio", value=f"${np.median(final_equity_values):,.2f}")
     st.metric(label="Median Unlevered Portfolio", value=f"${np.median(final_portfolio_values2):,.2f}")
 
