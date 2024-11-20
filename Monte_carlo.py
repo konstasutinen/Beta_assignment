@@ -197,31 +197,31 @@ if simulate_button:
         ax.plot(range(total_days + 1), interest_rate_paths[:, i], alpha=0.5, linewidth=0.7)
     ax.grid(True)
     st.pyplot(fig)
-    # Calculate VaR (Value at Risk)
-    var_5_levered = np.percentile(final_equity_values, 5)
-    var_1_levered = np.percentile(final_equity_values, 1)
-    var_5_unlevered = np.percentile(final_portfolio_values2, 5)
-    var_1_unlevered = np.percentile(final_portfolio_values2, 1)
+    
+  # Calculate VaR as percentage loss
+var_5_levered = (np.percentile(final_equity_values, 5) / initial_investment - 1) * 100
+var_1_levered = (np.percentile(final_equity_values, 1) / initial_investment - 1) * 100
+var_5_unlevered = (np.percentile(final_portfolio_values2, 5) / initial_investment - 1) * 100
+var_1_unlevered = (np.percentile(final_portfolio_values2, 1) / initial_investment - 1) * 100
 
-    # Create a DataFrame for VaR results
-    var_table = pd.DataFrame(
-        {
-            "Levered Portfolio": [var_5_levered, var_1_levered],
-            "Unlevered Portfolio": [var_5_unlevered, var_1_unlevered],
-        },
-        index=["VaR at 5%", "VaR at 1%"]
-    )
+# Create a DataFrame for VaR results
+var_table = pd.DataFrame(
+    {
+        "Levered Portfolio": [f"{var_5_levered:.2f}%", f"{var_1_levered:.2f}%"],
+        "Unlevered Portfolio": [f"{var_5_unlevered:.2f}%", f"{var_1_unlevered:.2f}%"],
+    },
+    index=["VaR at 5%", "VaR at 1%"]
+)
 
-    # Format table values as currency with 2 decimal places
-    var_table = var_table.style.format("${:,.2f}")
+# Display the VaR table
+st.write("### Value at Risk (VaR) as Percentage Loss")
+st.dataframe(var_table)
 
-    # Display the VaR table
-    st.write("### Value at Risk (VaR) Table")
-    st.dataframe(var_table)
+# Calculate probability of achieving 5X the initial investment
+threshold = 5 * initial_investment
+prob_5x_levered = (final_equity_values >= threshold).sum() / num_simulations * 100
+prob_5x_unlevered = (final_portfolio_values2 >= threshold).sum() / num_simulations * 100
 
-    #exceed threshold
-    threshold = 5000
-    prob_above_levered = (final_equity_values > threshold).sum() / num_simulations * 100
-    prob_above_unlevered = (final_portfolio_values2 > threshold).sum() / num_simulations * 100
-    st.write(f"Probability of Levered Portfolio > $5,000: {prob_above_levered:.2f}%")
-    st.write(f"Probability of Unlevered Portfolio > $5,000: {prob_above_unlevered:.2f}%")
+# Display the probabilities
+st.write(f"Probability of Levered Portfolio ≥ 5X Initial Investment: {prob_5x_levered:.2f}%")
+st.write(f"Probability of Unlevered Portfolio ≥ 5X Initial Investment: {prob_5x_unlevered:.2f}%")
