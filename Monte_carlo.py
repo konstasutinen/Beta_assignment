@@ -12,7 +12,13 @@ st.title("Beta Project: Monte-Carlo simulation of leveraged equity portfolio ðŸŽ
 st.subheader("Made by Konsta Sutinen, Aaro Tuominen, Elias Vanninen and Kalle Juven")
 
 # User Input for Simulation Parameters
-initial_investment = st.number_input("Initial Investment ($)", value=1000, step=100)
+# User Input for Initial Investment with a minimum constraint
+initial_investment = st.number_input("Initial Investment ($)", value=1000, step=100, min_value=100)
+
+# Check and warn if the user tries to set an invalid value
+if initial_investment < 100:
+    st.error("Initial investment must be at least $100.")
+    
 percentage_of_leverage_in_portfolio = st.slider(
     "Leverage as % of Portfolio", min_value=0, max_value=95, value=50
 )
