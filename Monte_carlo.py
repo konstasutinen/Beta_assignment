@@ -24,7 +24,7 @@ percentage_of_leverage_in_portfolio = st.slider(
 )
 time_horizon_years = st.slider("Time Horizon (Years)", min_value=1, max_value=10, value=5)
 start_rate = st.number_input(
-    "Starting Interest Rate (%)", 
+    "Starting Fed Funds daily rate(%) ", 
     value=4.58,  # Default assumption
     step=0.01, 
     format="%.2f"
@@ -32,7 +32,7 @@ start_rate = st.number_input(
 
 # User Input for Interest Rate Margin as a percentage input
 interest_rate_margin = st.number_input(
-    "Interest Rate Margin (%)", 
+    "Margin on Fed Funds rate (%)", 
     value=1.0,  # Default value
     step=0.1,   # Increment step
     format="%.2f",  # Format to 2 decimal places
