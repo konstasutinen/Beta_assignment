@@ -23,6 +23,13 @@ percentage_of_leverage_in_portfolio = st.slider(
     "Leverage as % of Portfolio", min_value=0, max_value=95, value=50
 )
 time_horizon_years = st.slider("Time Horizon (Years)", min_value=1, max_value=10, value=5)
+start_rate = st.number_input(
+    "Starting Interest Rate (%)", 
+    value=4.58,  # Default assumption
+    step=0.01, 
+    format="%.2f"
+) / 100  # Convert percentage to decimal
+
 interest_rate_margin = st.slider("Interest Rate Margin (%)", min_value=0.0, max_value=10.0, value=1.0) / 100
 num_simulations = st.selectbox("Number of Simulations", options=[1, 100, 1000, 10000], index=2)
 
@@ -85,7 +92,6 @@ if simulate_button:
     total_days = time_horizon_years * trading_days_per_year
 
     # Vasicek Model Parameters
-    start_rate = 0.0458
     mean_rate = 0.0461
     kappa = -0.003794768
     sigma = 0.003141746
