@@ -30,7 +30,16 @@ start_rate = st.number_input(
     format="%.2f"
 ) / 100  # Convert percentage to decimal
 
-interest_rate_margin = st.slider("Interest Rate Margin (%)", min_value=0.0, max_value=10.0, value=1.0) / 100
+# User Input for Interest Rate Margin as a percentage input
+interest_rate_margin = st.number_input(
+    "Interest Rate Margin (%)", 
+    value=1.0,  # Default value
+    step=0.1,   # Increment step
+    format="%.2f",  # Format to 2 decimal places
+    min_value=0.0,  # Minimum value
+    max_value=10.0  # Maximum value
+) / 100  # Convert to decimal
+
 num_simulations = st.selectbox("Number of Simulations", options=[1, 100, 1000, 10000], index=2)
 
 # Leverage Calculation
