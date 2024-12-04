@@ -7,15 +7,15 @@ import matplotlib
 # Use Agg backend for non-interactive environments
 matplotlib.use('Agg')
 
-# Application Title
+
 st.title("Beta Project: Monte-Carlo simulation of leveraged equity portfolio 🎲")
 st.subheader("Made by Konsta Sutinen, Aaro Tuominen, Elias Vanninen and Kalle Juven")
 
-# User Input for Simulation Parameters
-# User Input for Initial Investment with a minimum constraint
+
+# 
 initial_investment = st.number_input("Initial Investment ($)", value=1000, step=100, min_value=100)
 
-# Check and warn if the user tries to set an invalid value
+
 if initial_investment < 100:
     st.error("Initial investment must be at least $100.")
 
@@ -30,7 +30,7 @@ start_rate = st.number_input(
     format="%.2f"
 ) / 100  # Convert percentage to decimal
 
-# User Input for Interest Rate Margin as a percentage input
+# Rate Margin as a percentage input. dont change
 interest_rate_margin = st.number_input(
     "Margin on Fed Funds rate (%)", 
     value=1.0,  # Default value
@@ -42,18 +42,16 @@ interest_rate_margin = st.number_input(
 
 num_simulations = st.selectbox("Number of Simulations", options=[1, 100, 1000, 10000], index=2)
 
-# Leverage Calculation
+#leverage
 leverage = initial_investment / (1 - (percentage_of_leverage_in_portfolio / 100)) - initial_investment
 portfolio_start_value = initial_investment + leverage
 
-# Donut Chart to Visualize Portfolio Allocation
+# Donut
 st.write("### Portfolio Allocation")
 
-# Data for the chart
 data = [initial_investment, leverage]
 labels = ["Equity ", "Leverage "]
 
-# Create the figure
 fig, ax = plt.subplots()
 wedges, texts, autotexts = ax.pie(
     data, labels=labels, autopct='%1.1f%%', startangle=90, textprops=dict(color="w")
@@ -73,7 +71,7 @@ for i, value in enumerate(data):
         color='black',
     )
 
-# Display the chart
+
 st.pyplot(fig)
 
 # Button to Trigger Simulation
@@ -105,7 +103,7 @@ if simulate_button:
     kappa = -0.003794768
     sigma = 0.003141746
 
-    # Simulate Interest Rates
+    
     interest_rate_paths = vasicek_simulation(
         start_rate=start_rate,
         mean_rate=mean_rate,
