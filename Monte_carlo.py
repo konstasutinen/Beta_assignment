@@ -9,7 +9,7 @@ matplotlib.use('Agg')
 
 
 st.title("Beta Project: Monte-Carlo simulation of leveraged equity portfolio 🎲")
-st.subheader("Made by Konsta Sutinen, Aaro Tuominen, Elias Vanninen and Kalle Juven")
+st.subheader("Made by Konsta Sutinen")
 
 
 # 
